@@ -1,0 +1,8 @@
+*.json
+datasets
+*.npz
+*.avi
+*.mp4
+VERSION
+.ipynb_checkpoints
+
