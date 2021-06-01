@@ -145,7 +145,50 @@ class SkeletonFace():
             vid_file.release()
 
         return vid
+
+def generate_one_clip(keypoints, clip_height=768, display_height=240,
+                  temp_file='__temp__.avi', word = ''):
+    """
+    Display a side-by-side animation comprising the skeleton and (optionally) the source
+    video.
+
+    Parameters
+    ----------
+    keypoints : numpy array
+        Array of keypoints in the form [frame,landmark,coords]
+    clip_height : int
+        Desired clip height (applies to both source video and skeleton, the former is upscaled)
+    display_height : int
+        Desired display height
+    temp_file : int
+        Temporary file for transcoding
+    include_source_video: bool
+        Whether to include the source video
+    word: str,
+        The word that the person says
+    """
+    keypoints = np.copy(keypoints) 
+    rescaling_factor = clip_height/display_height
+    keypoints = keypoints * rescaling_factor
+
+    #duration = 1
+    skeleton = SkeletonFace(target_width=clip_height, target_height=clip_height)
+    skeleton.animate(keypoints, temp_file, )#fps=len(keypoints)/duration)
     
+    clip_skeleton = VideoFileClip(temp_file)
+    
+    return clip_skeleton
+
+def display_animation_multiple_faces(keypoints_array, clip_height=768, display_height=240,
+                      temp_file='__temp__.avi', word = ''):
+    clip_list = []
+    for i, keypoints in enumerate(keypoints_array):
+        clip = generate_one_clip(keypoints, clip_height = clip_height, display_height = display_height,
+                                 temp_file = temp_file.replace('__.', '__{}.'.format(i)), word = word)
+        clip_list.append(clip)
+    clip_final = clips_array([clip_list])
+    return clip_final.ipython_display(height=display_height, rd_kwargs=dict(logger=None))   
+
 def display_animation_face(keypoints, clip_height=768, display_height=240,
                       temp_file='__temp__.avi', word = ''):
     """
@@ -167,19 +210,10 @@ def display_animation_face(keypoints, clip_height=768, display_height=240,
     word: str,
         The word that the person says
     """
-    
-    keypoints = np.copy(keypoints) 
-    rescaling_factor = clip_height/display_height
-    keypoints = keypoints * rescaling_factor
 
-    duration = 1
-    skeleton = SkeletonFace(target_width=clip_height, target_height=clip_height)
-    skeleton.animate(keypoints, temp_file, fps=len(keypoints)/duration)
-    
-    clip_skeleton = VideoFileClip(temp_file)
-    
-    clip = clip_skeleton
     if len(word) > 0:
         print(word)
+    clip = generate_one_clip(keypoints, clip_height = clip_height, display_height = display_height,
+                             temp_file = temp_file, word = word)
 
     return clip.ipython_display(height=display_height, rd_kwargs=dict(logger=None))
