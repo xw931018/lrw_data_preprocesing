@@ -46,7 +46,8 @@ class SkeletonFace():
                  target_height,
                  radius=10,
                  confidence_coord=None,
-                 transform_keypoints=False):
+                 transform_keypoints=False,
+                 n_points_per_image = 68):
         """
         Parameters
         ----------
@@ -63,6 +64,7 @@ class SkeletonFace():
          transform_keypoints: bool
             Whether to transform key points
         """
+        self.n_points_per_image = n_points_per_image
         self.landmarks = [(226, 0, 255)] * 17 + [(155, 0, 255)] * 5 + [(198, 0, 255)] * 5 + [(70, 0, 255)] * 4 + \
                          [(141, 255, 0)] * 5 + [(99, 255, 0)] * 6 + [(127, 0, 255)] * 6 + [(255, 42, 0)] * 12 + \
                          [(255, 113, 0)] * 8
@@ -96,7 +98,7 @@ class SkeletonFace():
         return img
 
     def _draw_landmarks(self, keypoints, img):
-        for i, colour in enumerate(self.landmarks):
+        for i, colour in enumerate(self.landmarks[0:self.n_points_per_image]):
             # Skip points with confidence 0 (usually means not detected)
             if self.confidence_coord is not None and keypoints[i, self.confidence_coord] == 0:
                 continue
@@ -108,8 +110,8 @@ class SkeletonFace():
         keypoints -= np.amin(keypoints, axis=0)
         keypoint_scale = np.amax(keypoints, axis=0)
         keypoints *= np.array((self.target_width, self.target_height)) * (
-            1 - 2 * Skeleton.IMG_BORDER_FRAC) / keypoint_scale
-        keypoints += np.array((self.target_width, self.target_height)) * Skeleton.IMG_BORDER_FRAC
+            1 - 2 * SkeletonFace.IMG_BORDER_FRAC) / keypoint_scale
+        keypoints += np.array((self.target_width, self.target_height)) * SkeletonFace.IMG_BORDER_FRAC
 
         return keypoints
 
@@ -147,7 +149,7 @@ class SkeletonFace():
         return vid
 
 def generate_one_clip(keypoints, clip_height=768, display_height=240,
-                  temp_file='__temp__.avi', word = ''):
+                  temp_file='__temp__.avi', word = '', transform_keypoints = False):
     """
     Display a side-by-side animation comprising the skeleton and (optionally) the source
     video.
@@ -170,9 +172,11 @@ def generate_one_clip(keypoints, clip_height=768, display_height=240,
     keypoints = np.copy(keypoints) 
     rescaling_factor = clip_height/display_height
     keypoints = keypoints * rescaling_factor
-
+    n_points_per_image = len(keypoints[0])
+    
     #duration = 1
-    skeleton = SkeletonFace(target_width=clip_height, target_height=clip_height)
+    skeleton = SkeletonFace(target_width=clip_height, target_height=clip_height, transform_keypoints = transform_keypoints,
+                            n_points_per_image = n_points_per_image)
     skeleton.animate(keypoints, temp_file, )#fps=len(keypoints)/duration)
     
     clip_skeleton = VideoFileClip(temp_file)
@@ -180,17 +184,18 @@ def generate_one_clip(keypoints, clip_height=768, display_height=240,
     return clip_skeleton
 
 def display_animation_multiple_faces(keypoints_array, clip_height=768, display_height=240,
-                      temp_file='__temp__.avi', word = ''):
+                      temp_file='__temp__.avi', word = '', transform_keypoints = False):
     clip_list = []
     for i, keypoints in enumerate(keypoints_array):
         clip = generate_one_clip(keypoints, clip_height = clip_height, display_height = display_height,
-                                 temp_file = temp_file.replace('__.', '__{}.'.format(i)), word = word)
+                                 temp_file = temp_file.replace('__.', '__{}.'.format(i)), word = word,
+                                 transform_keypoints = transform_keypoints)
         clip_list.append(clip)
     clip_final = clips_array([clip_list])
     return clip_final.ipython_display(height=display_height, rd_kwargs=dict(logger=None))   
 
 def display_animation_face(keypoints, clip_height=768, display_height=240,
-                      temp_file='__temp__.avi', word = ''):
+                      temp_file='__temp__.avi', word = '', transform_keypoints = False):
     """
     Display a side-by-side animation comprising the skeleton and (optionally) the source
     video.
@@ -214,6 +219,7 @@ def display_animation_face(keypoints, clip_height=768, display_height=240,
     if len(word) > 0:
         print(word)
     clip = generate_one_clip(keypoints, clip_height = clip_height, display_height = display_height,
-                             temp_file = temp_file, word = word)
+                             temp_file = temp_file, word = word, 
+                             transform_keypoints = transform_keypoints)
 
     return clip.ipython_display(height=display_height, rd_kwargs=dict(logger=None))
